@@ -92,7 +92,7 @@
         console.error("URL 파싱 실패:", e);
       }
 
-      // 쿼리스트링 처리 (개선된 부분)
+      // 쿼리스트링 처리
       const queryString = window.location.search;
       if (queryString) {
         // & 이후의 문자열 제거 (Download 같은 문자열 제거)
@@ -103,7 +103,7 @@
           input.value = queryValue;
         }
         
-        // &Download가 있는 경우 Language 링크 자동 실행
+        // &Download가 있는 경우 Language 링크 자동 실행 및 탭 닫기
         if (queryString.includes('&Download') && githubUser && githubRepo) {
           const appId = extractAppId(input.value);
           if (appId) {
@@ -159,7 +159,7 @@
         return null;
       }
 
-      // Language 링크 확인 및 자동 실행 함수 (추가된 함수)
+      // Language 링크 확인 및 자동 실행 함수 (수정된 버전)
       async function checkAndOpenLanguageLink(appId, githubUser, githubRepo) {
         const baseLangUrl = `https://raw.githubusercontent.com/${githubUser}/${githubRepo}/refs/heads/main/Language/${appId}`;
         const extensions = ['zip', 'rar', '7z', 'exe', 'tar', 'txt'];
@@ -169,8 +169,18 @@
           try {
             const res = await fetch(langUrl, { method: 'HEAD' });
             if (res.ok) {
-              window.open(langUrl, '_blank');
-              break; // 첫 번째로 유효한 URL을 찾으면 실행 후 종료
+              // 현재 탭에서 다운로드 시작
+              window.location.href = langUrl;
+              
+              // 다운로드 후 탭 닫기 시도 (브라우저에 따라 작동하지 않을 수 있음)
+              setTimeout(() => {
+                try {
+                  window.close();
+                } catch (e) {
+                  console.log("탭을 닫을 수 없습니다. 수동으로 닫아주세요.");
+                }
+              }, 1000);
+              return;
             }
           } catch (err) {
             console.error(`확장자 ${ext}에서 오류 발생:`, err);
@@ -207,9 +217,9 @@
         // Language 링크는 존재 여부 확인 후 버튼 추가
         if (githubUser && githubRepo) {
           const baseLangUrl = `https://raw.githubusercontent.com/${githubUser}/${githubRepo}/refs/heads/main/Language/${appId}`;
-          const extensions = ['zip', 'rar', '7z', 'exe', 'tar', 'txt'];  // 필요한 확장자만 추가
+          const extensions = ['zip', 'rar', '7z', 'exe', 'tar', 'txt'];
       
-          let foundValidUrl = false;  // 유효한 URL을 찾았는지 여부
+          let foundValidUrl = false;
       
           // 확장자 순차적으로 시도
           const tryExtensions = async () => {
@@ -221,20 +231,19 @@
                 if (res.ok) {
                   buttonsHTML += createButtonHTML("Git Language 경로", langUrl);
                   foundValidUrl = true;
-                  break;  // 첫 번째로 유효한 URL을 찾으면 멈춤
+                  break;
                 }
               } catch (err) {
                 console.error(`확장자 ${ext}에서 오류 발생:`, err);
               }
             }
       
-            // 유효한 URL을 찾지 못했다면 버튼 추가하지 않음
             if (foundValidUrl) {
               buttonsHTML += '</div>';
               linkContainer.innerHTML = buttonsHTML;
             } else {
               buttonsHTML += '</div>';
-              linkContainer.innerHTML = buttonsHTML;  // 버튼 없이 표시
+              linkContainer.innerHTML = buttonsHTML;
             }
           };
       
@@ -247,6 +256,5 @@
       }
     });
   </script>
-
 </body>
 </html>
