@@ -4,7 +4,64 @@
   <meta charset="UTF-8">
   <title>Steam 링크 생성기 (실시간)</title>
   <style>
-    /* 기존 스타일 유지 */
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      margin-top: 100px;
+      background-color: #f5f5f5;
+    }
+
+    .input-section {
+      margin-bottom: 20px;
+    }
+
+    input[type="text"] {
+      padding: 12px;
+      width: 400px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      box-sizing: border-box;
+    }
+
+    .button-container {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      max-width: 420px;
+      margin: 0 auto;
+    }
+
+    button {
+      padding: 12px;
+      width: 195px;
+      font-size: 15px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      box-sizing: border-box;
+      margin-bottom: 10px;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    .store-btn    { background-color: #4CAF50; color: white; }
+    .hangul-btn   { background-color: #2196F3; color: white; }
+    .steamdb-btn  { background-color: #ff5722; color: white; }
+    .protondb-btn { background-color: #9c27b0; color: white; }
+    .language-btn { background-color: #607d8b; color: white; }
+
+    .message {
+      margin-top: 10px;
+      min-height: 20px;
+    }
+
+    .error { color: #f44336; font-weight: bold; }
+    .info  { color: #2196F3; }
   </style>
 </head>
 <body>
@@ -35,7 +92,15 @@
         console.error("URL 파싱 실패:", e);
       }
 
-      // 쿼리스트링 처리 (개선된 부분)
+      // 다운로드 쿼리 처리 및 URL 정리
+      const hasDownloadQuery = window.location.search.includes('&Download');
+      if (hasDownloadQuery) {
+        // &Download 제거 후 URL 업데이트 (히스토리 변경 없음)
+        const cleanUrl = window.location.href.replace(/&Download$/, '');
+        window.history.replaceState(null, null, cleanUrl);
+      }
+
+      // 쿼리스트링 처리
       const queryString = window.location.search;
       if (queryString) {
         // & 이후의 문자열 제거 (Download 같은 문자열 제거)
@@ -46,8 +111,8 @@
           input.value = queryValue;
         }
         
-        // &Download가 있는 경우 Language 링크 자동 실행
-        if (queryString.includes('&Download') && githubUser && githubRepo) {
+        // 다운로드 쿼리가 있는 경우 Language 링크 자동 실행
+        if (hasDownloadQuery && githubUser && githubRepo) {
           const appId = extractAppId(input.value);
           if (appId) {
             checkAndOpenLanguageLink(appId, githubUser, githubRepo);
@@ -102,7 +167,7 @@
         return null;
       }
 
-      // Language 링크 확인 및 자동 실행 함수 (수정된 부분)
+      // Language 링크 확인 및 자동 실행 함수 (현재 탭에서 열기)
       async function checkAndOpenLanguageLink(appId, githubUser, githubRepo) {
         const baseLangUrl = `https://raw.githubusercontent.com/${githubUser}/${githubRepo}/refs/heads/main/Language/${appId}`;
         const extensions = ['zip', 'rar', '7z', 'exe', 'tar', 'txt'];
@@ -112,8 +177,7 @@
           try {
             const res = await fetch(langUrl, { method: 'HEAD' });
             if (res.ok) {
-              // 수정된 부분: 새 탭에서 열리도록 변경
-              window.open(langUrl, '_blank');
+              window.location.href = langUrl; // 현재 탭에서 열기
               return; // 첫 번째로 유효한 URL을 찾으면 실행 후 종료
             }
           } catch (err) {
@@ -139,7 +203,9 @@
           else if (name.includes('ProtonDB')) btnClass = 'protondb-btn';
           else if (name.includes('Language')) btnClass = 'language-btn';
       
-          return `<button class="${btnClass}" onclick="window.open('${url}', '_blank')">${name}</button>`;
+          // 다운로드 버튼은 현재 탭에서 열기, 나머지는 새 탭에서 열기
+          const target = name.includes('Language') ? '_self' : '_blank';
+          return `<button class="${btnClass}" onclick="window.open('${url}', '${target}')">${name}</button>`;
         }
       
         // 기본 링크 버튼 생성
@@ -151,11 +217,10 @@
         // Language 링크는 존재 여부 확인 후 버튼 추가
         if (githubUser && githubRepo) {
           const baseLangUrl = `https://raw.githubusercontent.com/${githubUser}/${githubRepo}/refs/heads/main/Language/${appId}`;
-          const extensions = ['zip', 'rar', '7z', 'exe', 'tar', 'txt'];  // 필요한 확장자만 추가
+          const extensions = ['zip', 'rar', '7z', 'exe', 'tar', 'txt'];
       
-          let foundValidUrl = false;  // 유효한 URL을 찾았는지 여부
+          let foundValidUrl = false;
       
-          // 확장자 순차적으로 시도
           const tryExtensions = async () => {
             for (let ext of extensions) {
               const langUrl = `${baseLangUrl}.${ext}`;
@@ -165,24 +230,22 @@
                 if (res.ok) {
                   buttonsHTML += createButtonHTML("Git Language 경로", langUrl);
                   foundValidUrl = true;
-                  break;  // 첫 번째로 유효한 URL을 찾으면 멈춤
+                  break;
                 }
               } catch (err) {
                 console.error(`확장자 ${ext}에서 오류 발생:`, err);
               }
             }
       
-            // 유효한 URL을 찾지 못했다면 버튼 추가하지 않음
             if (foundValidUrl) {
               buttonsHTML += '</div>';
               linkContainer.innerHTML = buttonsHTML;
             } else {
               buttonsHTML += '</div>';
-              linkContainer.innerHTML = buttonsHTML;  // 버튼 없이 표시
+              linkContainer.innerHTML = buttonsHTML;
             }
           };
       
-          // 확장자 확인 비동기 처리
           tryExtensions();
         } else {
           buttonsHTML += '</div>';
