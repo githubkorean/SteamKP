@@ -157,25 +157,44 @@
           "SteamDB 정보": `https://steamdb.info/app/${appId}`,
           "ProtonDB 평점": `https://www.protondb.com/app/${appId}`
         };
-
-        if (githubUser && githubRepo) {
-          links["Git Language 경로"] =
-            `https://raw.githubusercontent.com/${githubUser}/${githubRepo}/refs/heads/main/Language/${appId}`;
-        }
-
-        let buttonsHTML = '<div class="button-container">';
-        for (const [name, url] of Object.entries(links)) {
+      
+        // 버튼 HTML 템플릿 생성기
+        function createButtonHTML(name, url) {
           let btnClass = '';
           if (name.includes('스팀')) btnClass = 'store-btn';
           else if (name.includes('한글화')) btnClass = 'hangul-btn';
           else if (name.includes('SteamDB')) btnClass = 'steamdb-btn';
           else if (name.includes('ProtonDB')) btnClass = 'protondb-btn';
           else if (name.includes('Language')) btnClass = 'language-btn';
-
-          buttonsHTML += `<button class="${btnClass}" onclick="window.open('${url}', '_blank')">${name}</button>`;
+      
+          return `<button class="${btnClass}" onclick="window.open('${url}', '_blank')">${name}</button>`;
         }
-        buttonsHTML += '</div>';
-        linkContainer.innerHTML = buttonsHTML;
+      
+        // 기본 링크 버튼 생성
+        let buttonsHTML = '<div class="button-container">';
+        for (const [name, url] of Object.entries(links)) {
+          buttonsHTML += createButtonHTML(name, url);
+        }
+      
+        // Language 링크는 존재 여부 확인 후 버튼 추가
+        if (githubUser && githubRepo) {
+          const langUrl = `https://raw.githubusercontent.com/${githubUser}/${githubRepo}/refs/heads/main/Language/${appId}`;
+      
+          fetch(langUrl, { method: 'HEAD' }).then(res => {
+            if (res.ok) {
+              buttonsHTML += createButtonHTML("Git Language 경로", langUrl);
+            }
+            buttonsHTML += '</div>';
+            linkContainer.innerHTML = buttonsHTML;
+          }).catch(err => {
+            console.error("Language 경로 확인 중 오류:", err);
+            buttonsHTML += '</div>';
+            linkContainer.innerHTML = buttonsHTML;
+          });
+        } else {
+          buttonsHTML += '</div>';
+          linkContainer.innerHTML = buttonsHTML;
+        }
       }
     });
   </script>
