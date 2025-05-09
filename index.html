@@ -29,7 +29,7 @@
       justify-content: center;
       gap: 10px;
       flex-wrap: wrap;
-      max-width: 420px;
+      max-width: 410px;
       margin: 0 auto;
     }
 
@@ -49,19 +49,39 @@
       opacity: 0.9;
     }
 
-    .store-btn    { background-color: #4CAF50; color: white; }
-    .hangul-btn   { background-color: #2196F3; color: white; }
-    .steamdb-btn  { background-color: #ff5722; color: white; }
-    .protondb-btn { background-color: #9c27b0; color: white; }
-    .language-btn { background-color: #607d8b; color: white; }
+    .store-btn {
+      background-color: #4CAF50;
+      color: white;
+    }
+
+    .hangul-btn {
+      background-color: #2196F3;
+      color: white;
+    }
+
+    .steamdb-btn {
+      background-color: #ff5722;
+      color: white;
+    }
+
+    .protondb-btn {
+      background-color: #9c27b0;
+      color: white;
+    }
 
     .message {
       margin-top: 10px;
       min-height: 20px;
     }
 
-    .error { color: #f44336; font-weight: bold; }
-    .info  { color: #2196F3; }
+    .error {
+      color: #f44336;
+      font-weight: bold;
+    }
+
+    .info {
+      color: #2196F3;
+    }
   </style>
 </head>
 <body>
@@ -74,36 +94,40 @@
   <div id="linkButtons"></div>
 
   <script>
-    document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('DOMContentLoaded', function() {
       const input = document.getElementById("steamUrl");
       const linkContainer = document.getElementById("linkButtons");
       const messageDiv = document.getElementById("message");
-
-      // 현재 URL에서 GitHub 사용자명과 레포 이름 추출
-      const currentUrl = window.location.href;
-      let githubUser = '', githubRepo = '';
-      try {
-        const match = currentUrl.match(/^https?:\/\/([^/]+)\.github\.io\/([^/]+)\/?/);
-        if (match) {
-          githubUser = match[1];
-          githubRepo = match[2];
-        }
-      } catch (e) {
-        console.error("URL 파싱 실패:", e);
-      }
-
-      // 쿼리스트링 처리
+      
       const queryString = window.location.search;
+      let githubUser, githubRepo;
+      let autoDownload = false;
+
+      // 쿼리에서 사용자 및 레포지토리 추출 및 자동 다운로드 플래그 확인
       if (queryString) {
         const queryValue = queryString.substring(1);
+        
         if (/^\d+$/.test(queryValue)) {
           input.value = `https://store.steampowered.com/app/${queryValue}`;
         } else if (queryValue.startsWith('http')) {
           input.value = queryValue;
         }
+
+        // &Download가 포함되어 있는지 확인
+        if (queryValue.includes('&Download')) {
+          autoDownload = true;
+          queryValue = queryValue.split('&')[0];  // &Download 앞까지만 추출
+        }
+
+        // 깃 사용자와 레포지토리 추출
+        const params = queryValue.split('?')[0].split('/');
+        if (params.length >= 2) {
+          githubUser = params[0];
+          githubRepo = params[1];
+        }
       }
 
-      input.addEventListener("input", function () {
+      input.addEventListener("input", function() {
         processInput();
       });
 
@@ -111,6 +135,8 @@
 
       function processInput() {
         const urlInput = input.value.trim();
+        
+        // 앱 ID 추출 시도
         const appId = extractAppId(urlInput);
 
         if (!appId) {
@@ -132,21 +158,26 @@
 
       function extractAppId(input) {
         if (!input) return null;
-        if (/^\d+$/.test(input)) return input;
-
-        const patterns = [
-          /\/app\/(\d+)/,
-          /steam:\/\/run\/(\d+)/,
-          /steamcommunity\.com\/app\/(\d+)/,
-          /steamapp\.net\/app\/(\d+)/,
-          /store\.steampowered\.com\/app\/(\d+)/
-        ];
-
-        for (const pattern of patterns) {
-          const match = input.match(pattern);
-          if (match && match[1]) return match[1];
+        
+        if (/^\d+$/.test(input)) {
+          return input;
         }
 
+        const patterns = [
+          /\/app\/(\d+)/, 
+          /steam:\/\/run\/(\d+)/, 
+          /steamcommunity\.com\/app\/(\d+)/, 
+          /steamapp\.net\/app\/(\d+)/, 
+          /store\.steampowered\.com\/app\/(\d+)/
+        ];
+        
+        for (const pattern of patterns) {
+          const match = input.match(pattern);
+          if (match && match[1]) {
+            return match[1];
+          }
+        }
+        
         return null;
       }
 
@@ -157,60 +188,53 @@
           "SteamDB 정보": `https://steamdb.info/app/${appId}`,
           "ProtonDB 평점": `https://www.protondb.com/app/${appId}`
         };
-      
-        // 버튼 HTML 템플릿 생성기
-        function createButtonHTML(name, url) {
+
+        let buttonsHTML = '<div class="button-container">';
+        for (const [name, url] of Object.entries(links)) {
           let btnClass = '';
           if (name.includes('스팀')) btnClass = 'store-btn';
           else if (name.includes('한글화')) btnClass = 'hangul-btn';
           else if (name.includes('SteamDB')) btnClass = 'steamdb-btn';
           else if (name.includes('ProtonDB')) btnClass = 'protondb-btn';
-          else if (name.includes('Language')) btnClass = 'language-btn';
-      
-          return `<button class="${btnClass}" onclick="window.open('${url}', '_blank')">${name}</button>`;
+          
+          buttonsHTML += `<button class="${btnClass}" onclick="window.open('${url}', '_blank')">${name}</button>`;
         }
-      
-        // 기본 링크 버튼 생성
-        let buttonsHTML = '<div class="button-container">';
-        for (const [name, url] of Object.entries(links)) {
-          buttonsHTML += createButtonHTML(name, url);
-        }
-      
+
         // Language 링크는 존재 여부 확인 후 버튼 추가
         if (githubUser && githubRepo) {
           const baseLangUrl = `https://raw.githubusercontent.com/${githubUser}/${githubRepo}/refs/heads/main/Language/${appId}`;
-          const extensions = ['zip', 'rar', '7z', 'exe', 'tar', 'txt'];  // 필요한 확장자만 추가
-      
-          let foundValidUrl = false;  // 유효한 URL을 찾았는지 여부
-      
-          // 확장자 순차적으로 시도
+          const extensions = ['zip', 'rar', '7z', 'exe', 'tar'];  
+
+          let foundValidUrl = false;
+
           const tryExtensions = async () => {
             for (let ext of extensions) {
               const langUrl = `${baseLangUrl}.${ext}`;
-      
+
               try {
                 const res = await fetch(langUrl, { method: 'HEAD' });
                 if (res.ok) {
-                  buttonsHTML += createButtonHTML("Git Language 경로", langUrl);
+                  buttonsHTML += `<button class="language-btn" onclick="window.open('${langUrl}', '_blank')">Git Language 경로</button>`;
                   foundValidUrl = true;
-                  break;  // 첫 번째로 유효한 URL을 찾으면 멈춤
+                  break;
                 }
               } catch (err) {
                 console.error(`확장자 ${ext}에서 오류 발생:`, err);
               }
             }
-      
-            // 유효한 URL을 찾지 못했다면 버튼 추가하지 않음
+
             if (foundValidUrl) {
               buttonsHTML += '</div>';
               linkContainer.innerHTML = buttonsHTML;
+              if (autoDownload) {
+                window.open(`${baseLangUrl}.${extensions[0]}`, '_blank'); // 첫 번째 확장자 링크 자동 실행
+              }
             } else {
               buttonsHTML += '</div>';
               linkContainer.innerHTML = buttonsHTML;  // 버튼 없이 표시
             }
           };
-      
-          // 확장자 확인 비동기 처리
+
           tryExtensions();
         } else {
           buttonsHTML += '</div>';
@@ -219,6 +243,5 @@
       }
     });
   </script>
-
 </body>
 </html>
