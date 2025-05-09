@@ -69,8 +69,8 @@
       color: white;
     }
 
-    .github-btn {
-      background-color: #333;
+    .raw-btn {
+      background-color: #607d8b;
       color: white;
     }
 
@@ -92,23 +92,34 @@
 <body>
 
   <div class="input-section">
-    <input type="text" id="steamUrl" placeholder="Steam 앱 URL 또는 앱 ID 입력">
+    <input type="text" id="steamUrl" placeholder="Steam 앱 URL, 앱 ID 또는 언어 코드 입력">
     <div id="message" class="message"></div>
   </div>
 
   <div id="linkButtons"></div>
 
   <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
       const input = document.getElementById("steamUrl");
       const linkContainer = document.getElementById("linkButtons");
       const messageDiv = document.getElementById("message");
 
-      // URL 쿼리 파라미터 확인
+      // 현재 페이지 주소에서 github 사용자명과 레포이름 추출
+      const currentURL = window.location.href;
+      const githubMatch = currentURL.match(/^https:\/\/([^\.]+)\.github\.io\/([^\/]+)\//);
+
+      let githubUser = null;
+      let githubRepo = null;
+
+      if (githubMatch) {
+        githubUser = githubMatch[1];
+        githubRepo = githubMatch[2];
+      }
+
+      // 쿼리 파라미터 처리
       const queryString = window.location.search;
       if (queryString) {
-        const queryValue = queryString.substring(1); // 물음표 제거
-        
+        const queryValue = queryString.substring(1); // ? 제거
         if (/^\d+$/.test(queryValue)) {
           input.value = `https://store.steampowered.com/app/${queryValue}`;
         } else if (queryValue.startsWith('http')) {
@@ -116,95 +127,100 @@
         }
       }
 
-      // 입력 이벤트 리스너 - 실시간 처리
-      input.addEventListener("input", function() {
+      input.addEventListener("input", function () {
         processInput();
       });
 
-      // 초기 로드 시에도 처리
-      processInput();
+      processInput(); // 초기 실행
 
       function processInput() {
         const urlInput = input.value.trim();
-        
-        // 앱 ID 추출 시도
         const appId = extractAppId(urlInput);
 
-        if (!appId) {
-          linkContainer.innerHTML = '';
-          if (urlInput.length > 0) {
-            messageDiv.textContent = "올바른 Steam 앱 URL 또는 앱 ID를 입력하세요.";
-            messageDiv.className = "message error";
-          } else {
-            messageDiv.textContent = "Steam 앱 URL 또는 앱 ID를 입력해주세요.";
-            messageDiv.className = "message info";
-          }
+        linkContainer.innerHTML = '';
+
+        if (!appId && urlInput !== '') {
+          messageDiv.textContent = "Steam 앱 ID 또는 URL을 입력하세요.";
+          messageDiv.className = "message error";
           return;
         }
 
         messageDiv.textContent = "아래 기능들을 사용해보세요.";
         messageDiv.className = "message info";
+
         createLinkButtons(appId, urlInput);
       }
 
       function extractAppId(input) {
         if (!input) return null;
-        
-        // 숫자만 있는 경우 바로 반환
+
         if (/^\d+$/.test(input)) {
           return input;
         }
 
-        // 다양한 Steam URL 패턴에서 앱 ID 추출
         const patterns = [
-          /\/app\/(\d+)/, // 기본 스팀 스토어 URL
-          /steam:\/\/run\/(\d+)/, // steam://run/ 형식
-          /steamcommunity\.com\/app\/(\d+)/, // 커뮤니티 URL
-          /steamapp\.net\/app\/(\d+)/, // steamapp.net URL
-          /store\.steampowered\.com\/app\/(\d+)/ // 정식 스토어 URL
+          /\/app\/(\d+)/,
+          /steam:\/\/run\/(\d+)/,
+          /steamcommunity\.com\/app\/(\d+)/,
+          /steamapp\.net\/app\/(\d+)/,
+          /store\.steampowered\.com\/app\/(\d+)/
         ];
-        
+
         for (const pattern of patterns) {
           const match = input.match(pattern);
           if (match && match[1]) {
             return match[1];
           }
         }
-        
+
         return null;
       }
 
-      function createLinkButtons(appId, urlInput) {
-        const links = {
-          "스팀 상점 페이지": `https://store.steampowered.com/app/${appId}`,
-          "한글화 정보 확인": `https://steamapp.net/app/${appId}#a_1`,
-          "SteamDB 정보": `https://steamdb.info/app/${appId}`,
-          "ProtonDB 평점": `https://www.protondb.com/app/${appId}`
-        };
+      function createLinkButtons(appId, rawInput) {
+        const buttons = [];
 
-        let buttonsHTML = '<div class="button-container">';
-        for (const [name, url] of Object.entries(links)) {
-          let btnClass = '';
-          if (name.includes('스팀')) btnClass = 'store-btn';
-          else if (name.includes('한글화')) btnClass = 'hangul-btn';
-          else if (name.includes('SteamDB')) btnClass = 'steamdb-btn';
-          else if (name.includes('ProtonDB')) btnClass = 'protondb-btn';
-          
-          buttonsHTML += `<button class="${btnClass}" onclick="window.open('${url}', '_blank')">${name}</button>`;
+        if (appId) {
+          buttons.push({
+            name: "스팀 상점 페이지",
+            url: `https://store.steampowered.com/app/${appId}`,
+            class: "store-btn"
+          });
+          buttons.push({
+            name: "한글화 정보 확인",
+            url: `https://steamapp.net/app/${appId}#a_1`,
+            class: "hangul-btn"
+          });
+          buttons.push({
+            name: "SteamDB 정보",
+            url: `https://steamdb.info/app/${appId}`,
+            class: "steamdb-btn"
+          });
+          buttons.push({
+            name: "ProtonDB 평점",
+            url: `https://www.protondb.com/app/${appId}`,
+            class: "protondb-btn"
+          });
         }
 
-        // GitHub Raw 버튼 추가 (특정 URL이 입력되면)
-        if (urlInput.includes('githubkorean.github.io/SteamKP/')) {
-          const gitHubUrl = `https://raw.githubusercontent.com/githubkorean/SteamKP/refs/heads/main/Language/${appId}.json`;
-          buttonsHTML += `<button class="github-btn" onclick="window.open('${gitHubUrl}', '_blank')">GitHub Raw 파일</button>`;
+        // 깃허브 raw 링크 버튼
+        if (githubUser && githubRepo && rawInput.length > 0 && !appId) {
+          const rawUrl = `https://raw.githubusercontent.com/${githubUser}/${githubRepo}/refs/heads/main/Language/${rawInput}`;
+          buttons.push({
+            name: `언어파일 이동 (${rawInput})`,
+            url: rawUrl,
+            class: "raw-btn"
+          });
         }
 
-        buttonsHTML += '</div>';
-        
-        linkContainer.innerHTML = buttonsHTML;
+        let html = '<div class="button-container">';
+        for (const btn of buttons) {
+          html += `<button class="${btn.class}" onclick="window.open('${btn.url}', '_blank')">${btn.name}</button>`;
+        }
+        html += '</div>';
+
+        linkContainer.innerHTML = html;
       }
     });
   </script>
-
 </body>
 </html>
