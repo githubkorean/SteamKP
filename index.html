@@ -103,7 +103,7 @@
       const queryString = window.location.search;
       if (queryString) {
         const queryValue = queryString.substring(1); // 물음표 제거
-
+        
         if (/^\d+$/.test(queryValue)) {
           input.value = `https://store.steampowered.com/app/${queryValue}`;
         } else if (queryValue.startsWith('http')) {
@@ -121,18 +121,17 @@
 
       function processInput() {
         const urlInput = input.value.trim();
-
+        
         // 앱 ID 추출 시도
         const appId = extractAppId(urlInput);
-        const githubInfo = extractGithubInfo(urlInput); // GitHub 정보 추출
 
-        if (!appId && !githubInfo) {
+        if (!appId) {
           linkContainer.innerHTML = '';
           if (urlInput.length > 0) {
-            messageDiv.textContent = "올바른 Steam 앱 URL 또는 앱 ID 또는 GitHub URL을 입력하세요.";
+            messageDiv.textContent = "올바른 Steam 앱 URL 또는 앱 ID를 입력하세요.";
             messageDiv.className = "message error";
           } else {
-            messageDiv.textContent = "Steam 앱 URL 또는 앱 ID 또는 GitHub URL을 입력해주세요.";
+            messageDiv.textContent = "Steam 앱 URL 또는 앱 ID를 입력해주세요.";
             messageDiv.className = "message info";
           }
           return;
@@ -140,41 +139,33 @@
 
         messageDiv.textContent = "아래 기능들을 사용해보세요.";
         messageDiv.className = "message info";
-
-        if (appId) {
-          createLinkButtons(appId);
-        } else if (githubInfo) {
-          createGithubButton(githubInfo.username, githubInfo.repo);
-        }
+        createLinkButtons(appId);
       }
 
       function extractAppId(input) {
         if (!input) return null;
+        
+        // 숫자만 있는 경우 바로 반환
+        if (/^\d+$/.test(input)) {
+          return input;
+        }
 
+        // 다양한 Steam URL 패턴에서 앱 ID 추출
         const patterns = [
-          /\/app\/(\d+)/,
-          /steam:\/\/run\/(\d+)/,
-          /steamcommunity\.com\/app\/(\d+)/,
-          /steamapp\.net\/app\/(\d+)/,
-          /store\.steampowered\.com\/app\/(\d+)/
+          /\/app\/(\d+)/, // 기본 스팀 스토어 URL
+          /steam:\/\/run\/(\d+)/, // steam://run/ 형식
+          /steamcommunity\.com\/app\/(\d+)/, // 커뮤니티 URL
+          /steamapp\.net\/app\/(\d+)/, // steamapp.net URL
+          /store\.steampowered\.com\/app\/(\d+)/ // 정식 스토어 URL
         ];
-
+        
         for (const pattern of patterns) {
           const match = input.match(pattern);
           if (match && match[1]) {
             return match[1];
           }
         }
-
-        return null;
-      }
-
-      function extractGithubInfo(input) {
-        const githubPattern = /https:\/\/github\.com\/([^\/]+)\/([^\/]+)/;
-        const match = input.match(githubPattern);
-        if (match) {
-          return { username: match[1], repo: match[2] };
-        }
+        
         return null;
       }
 
@@ -193,26 +184,23 @@
           else if (name.includes('한글화')) btnClass = 'hangul-btn';
           else if (name.includes('SteamDB')) btnClass = 'steamdb-btn';
           else if (name.includes('ProtonDB')) btnClass = 'protondb-btn';
-
+          
           buttonsHTML += `<button class="${btnClass}" onclick="window.open('${url}', '_blank')">${name}</button>`;
         }
+
+        // 추가: GitHub 링크 버튼 생성
+        const urlMatch = input.value.match(/https:\/\/githubkorean\.github\.io\/SteamKP\/(.+)/);
+        if (urlMatch && urlMatch[1]) {
+          const githubName = "githubkorean"; // Extracted GitHub name
+          const repoName = "SteamKP"; // Extracted repo name
+          const codeName = urlMatch[1];
+          const githubButtonHTML = `<button class="store-btn" onclick="window.open('https://raw.githubusercontent.com/${githubName}/${repoName}/refs/heads/main/Language/${codeName}', '_blank')">GitHub Raw File</button>`;
+          buttonsHTML += githubButtonHTML;
+        }
+
         buttonsHTML += '</div>';
         
         linkContainer.innerHTML = buttonsHTML;
-      }
-
-      function createGithubButton(username, repo) {
-        const githubUrl = `https://raw.githubusercontent.com/${username}/${repo}/refs/heads/main/Language/`;
-
-        const buttonHTML = `
-          <div class="button-container">
-            <button class="store-btn" onclick="window.open('${githubUrl}', '_blank')">
-              GitHub 파일 보기
-            </button>
-          </div>
-        `;
-
-        linkContainer.innerHTML = buttonHTML;
       }
     });
   </script>
