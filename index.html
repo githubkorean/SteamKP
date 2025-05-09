@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>GitHub 레포지토리 링크 생성기</title>
+  <title>Steam 링크 생성기 (실시간)</title>
   <style>
     body {
       font-family: sans-serif;
@@ -54,8 +54,23 @@
       color: white;
     }
 
-    .github-btn {
+    .hangul-btn {
       background-color: #2196F3;
+      color: white;
+    }
+
+    .steamdb-btn {
+      background-color: #ff5722;
+      color: white;
+    }
+
+    .protondb-btn {
+      background-color: #9c27b0;
+      color: white;
+    }
+
+    .github-btn {
+      background-color: #24292F;
       color: white;
     }
 
@@ -77,7 +92,7 @@
 <body>
 
   <div class="input-section">
-    <input type="text" id="steamUrl" placeholder="GitHub URL 입력">
+    <input type="text" id="steamUrl" placeholder="Steam 앱 URL 또는 앱 ID 입력">
     <div id="message" class="message"></div>
   </div>
 
@@ -93,7 +108,12 @@
       const queryString = window.location.search;
       if (queryString) {
         const queryValue = queryString.substring(1); // 물음표 제거
-        input.value = queryValue;
+        
+        if (/^\d+$/.test(queryValue)) {
+          input.value = `https://store.steampowered.com/app/${queryValue}`;
+        } else if (queryValue.startsWith('http')) {
+          input.value = queryValue;
+        }
       }
 
       // 입력 이벤트 리스너 - 실시간 처리
@@ -106,53 +126,88 @@
 
       function processInput() {
         const urlInput = input.value.trim();
+        
+        // 앱 ID 추출 시도
+        const appId = extractAppId(urlInput);
 
-        // 깃헙 이름과 레포지토리 이름 추출
-        const [githubName, repoName] = extractGitHubInfo(urlInput);
-
-        if (!githubName || !repoName) {
+        if (!appId) {
           linkContainer.innerHTML = '';
           if (urlInput.length > 0) {
-            messageDiv.textContent = "올바른 GitHub URL을 입력하세요.";
+            messageDiv.textContent = "올바른 Steam 앱 URL 또는 앱 ID를 입력하세요.";
             messageDiv.className = "message error";
           } else {
-            messageDiv.textContent = "GitHub URL을 입력해주세요.";
+            messageDiv.textContent = "Steam 앱 URL 또는 앱 ID를 입력해주세요.";
             messageDiv.className = "message info";
           }
           return;
         }
 
-        messageDiv.textContent = "아래 링크를 클릭하여 확인하세요.";
+        messageDiv.textContent = "아래 기능들을 사용해보세요.";
         messageDiv.className = "message info";
-        createLinkButtons(githubName, repoName);
+        createLinkButtons(appId, urlInput);
       }
 
-      function extractGitHubInfo(input) {
-        if (!input) return [null, null];
-
-        // GitHub URL 형식에서 깃헙 이름과 레포지토리 이름 추출
-        const match = input.match(/https:\/\/github\.com\/([^\/]+)\/([^\/]+)/);
-        if (match) {
-          return [match[1], match[2]]; // [githubName, repoName]
+      function extractAppId(input) {
+        if (!input) return null;
+        
+        // 숫자만 있는 경우 바로 반환
+        if (/^\d+$/.test(input)) {
+          return input;
         }
 
-        return [null, null];
+        // 다양한 Steam URL 패턴에서 앱 ID 추출
+        const patterns = [
+          /\/app\/(\d+)/, // 기본 스팀 스토어 URL
+          /steam:\/\/run\/(\d+)/, // steam://run/ 형식
+          /steamcommunity\.com\/app\/(\d+)/, // 커뮤니티 URL
+          /steamapp\.net\/app\/(\d+)/, // steamapp.net URL
+          /store\.steampowered\.com\/app\/(\d+)/ // 정식 스토어 URL
+        ];
+        
+        for (const pattern of patterns) {
+          const match = input.match(pattern);
+          if (match && match[1]) {
+            return match[1];
+          }
+        }
+        
+        return null;
       }
 
-      function createLinkButtons(githubName, repoName) {
+      function createLinkButtons(appId, urlInput) {
         const links = {
-          "GitHub 레포지토리": `https://github.com/${githubName}/${repoName}`,
-          "GitHub Raw 파일": `https://raw.githubusercontent.com/${githubName}/${repoName}/refs/heads/main/Language/`
+          "스팀 상점 페이지": `https://store.steampowered.com/app/${appId}`,
+          "한글화 정보 확인": `https://steamapp.net/app/${appId}#a_1`,
+          "SteamDB 정보": `https://steamdb.info/app/${appId}`,
+          "ProtonDB 평점": `https://www.protondb.com/app/${appId}`
         };
 
         let buttonsHTML = '<div class="button-container">';
         for (const [name, url] of Object.entries(links)) {
           let btnClass = '';
-          if (name.includes('GitHub')) btnClass = 'github-btn';
+          if (name.includes('스팀')) btnClass = 'store-btn';
+          else if (name.includes('한글화')) btnClass = 'hangul-btn';
+          else if (name.includes('SteamDB')) btnClass = 'steamdb-btn';
+          else if (name.includes('ProtonDB')) btnClass = 'protondb-btn';
+          
           buttonsHTML += `<button class="${btnClass}" onclick="window.open('${url}', '_blank')">${name}</button>`;
         }
-        buttonsHTML += '</div>';
 
+        // Extract GitHub username and repository name
+        const githubPattern = /github\.io\/([^\/]+)\/([^\/]+)/;
+        const match = urlInput.match(githubPattern);
+        
+        if (match) {
+          const githubUser = match[1];
+          const repoName = match[2];
+          const githubUrl = `https://raw.githubusercontent.com/${githubUser}/${repoName}/refs/heads/main/Language/`;
+
+          // Add GitHub button
+          buttonsHTML += `<button class="github-btn" onclick="window.open('${githubUrl}', '_blank')">GitHub Language 파일</button>`;
+        }
+
+        buttonsHTML += '</div>';
+        
         linkContainer.innerHTML = buttonsHTML;
       }
     });
