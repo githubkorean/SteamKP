@@ -69,6 +69,11 @@
       color: white;
     }
 
+    .github-btn {
+      background-color: #333;
+      color: white;
+    }
+
     .message {
       margin-top: 10px;
       min-height: 20px;
@@ -139,7 +144,7 @@
 
         messageDiv.textContent = "아래 기능들을 사용해보세요.";
         messageDiv.className = "message info";
-        createLinkButtons(appId);
+        createLinkButtons(appId, urlInput);
       }
 
       function extractAppId(input) {
@@ -169,7 +174,7 @@
         return null;
       }
 
-      function createLinkButtons(appId) {
+      function createLinkButtons(appId, urlInput) {
         const links = {
           "스팀 상점 페이지": `https://store.steampowered.com/app/${appId}`,
           "한글화 정보 확인": `https://steamapp.net/app/${appId}#a_1`,
@@ -188,14 +193,10 @@
           buttonsHTML += `<button class="${btnClass}" onclick="window.open('${url}', '_blank')">${name}</button>`;
         }
 
-        // 추가: GitHub 링크 버튼 생성
-        const urlMatch = input.value.match(/https:\/\/githubkorean\.github\.io\/SteamKP\/(.+)/);
-        if (urlMatch && urlMatch[1]) {
-          const githubName = "githubkorean"; // Extracted GitHub name
-          const repoName = "SteamKP"; // Extracted repo name
-          const codeName = urlMatch[1];
-          const githubButtonHTML = `<button class="store-btn" onclick="window.open('https://raw.githubusercontent.com/${githubName}/${repoName}/refs/heads/main/Language/${codeName}', '_blank')">GitHub Raw File</button>`;
-          buttonsHTML += githubButtonHTML;
+        // GitHub Raw 버튼 추가 (특정 URL이 입력되면)
+        if (urlInput.includes('githubkorean.github.io/SteamKP/')) {
+          const gitHubUrl = `https://raw.githubusercontent.com/githubkorean/SteamKP/refs/heads/main/Language/${appId}.json`;
+          buttonsHTML += `<button class="github-btn" onclick="window.open('${gitHubUrl}', '_blank')">GitHub Raw 파일</button>`;
         }
 
         buttonsHTML += '</div>';
