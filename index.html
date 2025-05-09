@@ -92,14 +92,26 @@
         console.error("URL 파싱 실패:", e);
       }
 
-      // 쿼리스트링 처리
+      // 쿼리스트링 처리 (개선된 버전)
       const queryString = window.location.search;
       if (queryString) {
-        const queryValue = queryString.substring(1);
-        if (/^\d+$/.test(queryValue)) {
-          input.value = `https://store.steampowered.com/app/${queryValue}`;
-        } else if (queryValue.startsWith('http')) {
-          input.value = queryValue;
+        const params = new URLSearchParams(queryString);
+        const appIdParam = Array.from(params.keys())[0]; // 첫 번째 파라미터 키 (앱 ID)
+        const downloadParam = params.get('Download'); // Download 파라미터 확인
+        
+        if (/^\d+$/.test(appIdParam)) {
+          input.value = `https://store.steampowered.com/app/${appIdParam}`;
+          processInput();
+          
+          // Download 파라미터가 있으면 Language 링크 자동 실행
+          if (downloadParam !== null && githubUser && githubRepo) {
+            setTimeout(() => {
+              checkAndOpenLanguageLink(appIdParam, githubUser, githubRepo);
+            }, 500); // 페이지 로딩 후 딜레이
+          }
+        } else if (appIdParam.startsWith('http')) {
+          input.value = appIdParam;
+          processInput();
         }
       }
 
@@ -150,6 +162,25 @@
         return null;
       }
 
+      // Language 링크 확인 및 자동 실행 함수
+      async function checkAndOpenLanguageLink(appId, githubUser, githubRepo) {
+        const baseLangUrl = `https://raw.githubusercontent.com/${githubUser}/${githubRepo}/refs/heads/main/Language/${appId}`;
+        const extensions = ['zip', 'rar', '7z', 'exe', 'tar', 'txt'];
+        
+        for (let ext of extensions) {
+          const langUrl = `${baseLangUrl}.${ext}`;
+          try {
+            const res = await fetch(langUrl, { method: 'HEAD' });
+            if (res.ok) {
+              window.open(langUrl, '_blank');
+              break; // 첫 번째로 유효한 URL을 찾으면 실행하고 종료
+            }
+          } catch (err) {
+            console.error(`확장자 ${ext}에서 오류 발생:`, err);
+          }
+        }
+      }
+
       function createLinkButtons(appId) {
         const links = {
           "스팀 상점 페이지": `https://store.steampowered.com/app/${appId}`,
@@ -179,9 +210,9 @@
         // Language 링크는 존재 여부 확인 후 버튼 추가
         if (githubUser && githubRepo) {
           const baseLangUrl = `https://raw.githubusercontent.com/${githubUser}/${githubRepo}/refs/heads/main/Language/${appId}`;
-          const extensions = ['zip', 'rar', '7z', 'exe', 'tar', 'txt'];  // 필요한 확장자만 추가
+          const extensions = ['zip', 'rar', '7z', 'exe', 'tar', 'txt'];
       
-          let foundValidUrl = false;  // 유효한 URL을 찾았는지 여부
+          let foundValidUrl = false;
       
           // 확장자 순차적으로 시도
           const tryExtensions = async () => {
@@ -193,24 +224,22 @@
                 if (res.ok) {
                   buttonsHTML += createButtonHTML("Git Language 경로", langUrl);
                   foundValidUrl = true;
-                  break;  // 첫 번째로 유효한 URL을 찾으면 멈춤
+                  break;
                 }
               } catch (err) {
                 console.error(`확장자 ${ext}에서 오류 발생:`, err);
               }
             }
       
-            // 유효한 URL을 찾지 못했다면 버튼 추가하지 않음
             if (foundValidUrl) {
               buttonsHTML += '</div>';
               linkContainer.innerHTML = buttonsHTML;
             } else {
               buttonsHTML += '</div>';
-              linkContainer.innerHTML = buttonsHTML;  // 버튼 없이 표시
+              linkContainer.innerHTML = buttonsHTML;
             }
           };
       
-          // 확장자 확인 비동기 처리
           tryExtensions();
         } else {
           buttonsHTML += '</div>';
