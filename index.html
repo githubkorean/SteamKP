@@ -228,7 +228,7 @@
               try {
                 const res = await fetch(langUrl, { method: 'HEAD' });
                 if (res.ok) {
-                  buttonsHTML += createButtonHTML("Git Language 경로", langUrl);
+                  buttonsHTML += createButtonHTML("한글패치 다운로드", langUrl);
                   foundValidUrl = true;
                   break;
                 }
