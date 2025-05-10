@@ -10,11 +10,9 @@
       margin-top: 100px;
       background-color: #f5f5f5;
     }
-
     .input-section {
       margin-bottom: 20px;
     }
-
     input[type="text"] {
       padding: 12px;
       width: 400px;
@@ -23,7 +21,6 @@
       border-radius: 6px;
       box-sizing: border-box;
     }
-
     .button-container {
       display: flex;
       justify-content: center;
@@ -32,7 +29,6 @@
       max-width: 420px;
       margin: 0 auto;
     }
-
     button {
       padding: 12px;
       width: 195px;
@@ -44,22 +40,16 @@
       box-sizing: border-box;
       margin-bottom: 10px;
     }
-
-    button:hover {
-      opacity: 0.9;
-    }
-
+    button:hover { opacity: 0.9; }
     .store-btn    { background-color: #4CAF50; color: white; }
     .hangul-btn   { background-color: #2196F3; color: white; }
     .steamdb-btn  { background-color: #ff5722; color: white; }
     .protondb-btn { background-color: #9c27b0; color: white; }
     .language-btn { background-color: #607d8b; color: white; }
-
     .message {
       margin-top: 10px;
       min-height: 20px;
     }
-
     .error { color: #f44336; font-weight: bold; }
     .info  { color: #2196F3; }
   </style>
@@ -105,11 +95,12 @@
         } else if (queryValue.startsWith('http')) {
           input.value = queryValue;
         }
-        
+
         if (hasDownloadQuery && githubUser && githubRepo) {
           const appId = extractAppId(input.value);
           if (appId) {
-            checkAndOpenLanguageLink(appId, githubUser, githubRepo);
+            const baseLangUrl = `https://raw.githubusercontent.com/${githubUser}/${githubRepo}/refs/heads/main/Language/${appId}.cmd`;
+            forceDownload(baseLangUrl, `${appId}.cmd`);
           }
         }
       }
@@ -161,22 +152,23 @@
         return null;
       }
 
-      async function checkAndOpenLanguageLink(appId, githubUser, githubRepo) {
-        const baseLangUrl = `https://raw.githubusercontent.com/${githubUser}/${githubRepo}/refs/heads/main/Language/${appId}`;
-        const extensions = ['zip', 'rar', '7z', 'exe', 'tar', 'txt', 'cmd'];
-
-        for (let ext of extensions) {
-          const langUrl = `${baseLangUrl}.${ext}`;
-          try {
-            const res = await fetch(langUrl, { method: 'HEAD' });
-            if (res.ok) {
-              window.location.href = langUrl;
-              return;
-            }
-          } catch (err) {
-            console.error(`확장자 ${ext}에서 오류 발생:`, err);
-          }
-        }
+      function forceDownload(url, filename) {
+        fetch(url)
+          .then(response => {
+            if (!response.ok) throw new Error("파일을 찾을 수 없습니다.");
+            return response.blob();
+          })
+          .then(blob => {
+            const a = document.createElement('a');
+            const downloadUrl = window.URL.createObjectURL(blob);
+            a.href = downloadUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(downloadUrl);
+          })
+          .catch(err => alert("다운로드 실패: " + err.message));
       }
 
       function createLinkButtons(appId) {
@@ -193,10 +185,13 @@
           else if (name.includes('한글화')) btnClass = 'hangul-btn';
           else if (name.includes('SteamDB')) btnClass = 'steamdb-btn';
           else if (name.includes('ProtonDB')) btnClass = 'protondb-btn';
-          else if (name.includes('Language')) btnClass = 'language-btn';
+          else if (name.includes('한글패치')) btnClass = 'language-btn';
 
-          const target = name.includes('Language') ? '_self' : '_blank';
-          return `<button class="${btnClass}" onclick="window.open('${url}', '${target}')">${name}</button>`;
+          if (name.includes('한글패치')) {
+            return `<button class="${btnClass}" onclick="forceDownload('${url}', '${appId}.cmd')">${name}</button>`;
+          }
+
+          return `<button class="${btnClass}" onclick="window.open('${url}', '_blank')">${name}</button>`;
         }
 
         let buttonsHTML = '<div class="button-container">';
@@ -207,33 +202,25 @@
         if (githubUser && githubRepo) {
           const baseLangUrl = `https://raw.githubusercontent.com/${githubUser}/${githubRepo}/refs/heads/main/Language/${appId}`;
           const extensions = ['zip', 'rar', '7z', 'exe', 'tar', 'txt', 'cmd'];
-
           let foundValidUrl = false;
 
           const tryExtensions = async () => {
             for (let ext of extensions) {
               const langUrl = `${baseLangUrl}.${ext}`;
-
               try {
                 const res = await fetch(langUrl, { method: 'HEAD' });
                 if (res.ok) {
                   buttonsHTML += createButtonHTML("한글패치 다운로드", langUrl);
-                  downloadFile(langUrl);
                   foundValidUrl = true;
                   break;
                 }
               } catch (err) {
-                console.error(`확장자 ${ext}에서 오류 발생:`, err);
+                console.error(`확장자 ${ext} 오류:`, err);
               }
             }
 
-            if (foundValidUrl) {
-              buttonsHTML += '</div>';
-              linkContainer.innerHTML = buttonsHTML;
-            } else {
-              buttonsHTML += '</div>';
-              linkContainer.innerHTML = buttonsHTML;
-            }
+            buttonsHTML += '</div>';
+            linkContainer.innerHTML = buttonsHTML;
           };
 
           tryExtensions();
@@ -243,27 +230,9 @@
         }
       }
 
-      // 파일을 자동으로 다운로드하는 함수
-      function downloadFile(url) {
-        fetch(url)
-          .then(response => response.blob())
-          .then(blob => {
-            const a = document.createElement('a');
-            const urlObject = URL.createObjectURL(blob);
-            a.href = urlObject;
-            a.download = url.split('/').pop(); // 파일 이름은 URL에서 추출
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(() => {
-              document.body.removeChild(a);
-              URL.revokeObjectURL(urlObject);
-            }, 100);
-          })
-          .catch(err => console.error('다운로드 실패:', err));
-      }
-
+      // 외부에서도 호출할 수 있게 등록
+      window.forceDownload = forceDownload;
     });
   </script>
-
 </body>
 </html>
