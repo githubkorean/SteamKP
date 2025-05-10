@@ -62,33 +62,6 @@
 
     .error { color: #f44336; font-weight: bold; }
     .info  { color: #2196F3; }
-    
-    #downloadProgress {
-      margin-top: 20px;
-      width: 400px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-    
-    .progress-bar {
-      height: 20px;
-      background-color: #e0e0e0;
-      border-radius: 10px;
-      margin-bottom: 5px;
-      overflow: hidden;
-    }
-    
-    .progress-fill {
-      height: 100%;
-      background-color: #4CAF50;
-      width: 0%;
-      transition: width 0.3s ease;
-    }
-    
-    .progress-text {
-      font-size: 14px;
-      color: #666;
-    }
   </style>
 </head>
 <body>
@@ -99,22 +72,12 @@
   </div>
 
   <div id="linkButtons"></div>
-  
-  <div id="downloadProgress" style="display: none;">
-    <div class="progress-bar">
-      <div class="progress-fill" id="progressBar"></div>
-    </div>
-    <div class="progress-text" id="progressText">다운로드 준비 중...</div>
-  </div>
 
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       const input = document.getElementById("steamUrl");
       const linkContainer = document.getElementById("linkButtons");
       const messageDiv = document.getElementById("message");
-      const downloadProgress = document.getElementById("downloadProgress");
-      const progressBar = document.getElementById("progressBar");
-      const progressText = document.getElementById("progressText");
 
       // 현재 URL에서 GitHub 사용자명과 레포 이름 추출
       const currentUrl = window.location.href;
@@ -129,6 +92,14 @@
         console.error("URL 파싱 실패:", e);
       }
 
+      // 다운로드 쿼리 처리 및 URL 정리
+      const hasDownloadQuery = window.location.search.includes('&Download');
+      if (hasDownloadQuery) {
+        // &Download 제거 후 URL 업데이트 (히스토리 변경 없음)
+        const cleanUrl = window.location.href.replace(/&Download$/, '');
+        window.history.replaceState(null, null, cleanUrl);
+      }
+
       // 쿼리스트링 처리
       const queryString = window.location.search;
       if (queryString) {
@@ -140,11 +111,11 @@
           input.value = queryValue;
         }
         
-        // 다운로드 쿼리가 있는 경우 Language 다운로드 자동 실행
-        if (queryString.includes('Download') && githubUser && githubRepo) {
+        // 다운로드 쿼리가 있는 경우 Language 링크 자동 실행
+        if (hasDownloadQuery && githubUser && githubRepo) {
           const appId = extractAppId(input.value);
           if (appId) {
-            startLanguageDownload(appId, githubUser, githubRepo);
+            checkAndOpenLanguageLink(appId, githubUser, githubRepo);
           }
         }
       }
@@ -196,105 +167,23 @@
         return null;
       }
 
-      // Language 다운로드 시작 함수 (fetch 사용)
-      async function startLanguageDownload(appId, githubUser, githubRepo) {
+      // Language 링크 확인 및 자동 실행 함수 (현재 탭에서 열기)
+      async function checkAndOpenLanguageLink(appId, githubUser, githubRepo) {
         const baseLangUrl = `https://raw.githubusercontent.com/${githubUser}/${githubRepo}/refs/heads/main/Language/${appId}`;
         const extensions = ['zip', 'rar', '7z', 'exe', 'tar', 'txt'];
-        
-        // 프로그레스 바 표시
-        downloadProgress.style.display = 'block';
-        progressText.textContent = "다운로드 가능한 파일 검색 중...";
-        
+
         for (let ext of extensions) {
           const langUrl = `${baseLangUrl}.${ext}`;
           try {
-            // HEAD 요청으로 파일 존재 확인
-            progressText.textContent = `${ext} 파일 확인 중...`;
-            const headRes = await fetch(langUrl, { method: 'HEAD' });
-            
-            if (headRes.ok) {
-              // 파일이 존재하면 다운로드 시작
-              progressText.textContent = `${ext} 파일 다운로드 시작...`;
-              
-              const response = await fetch(langUrl);
-              const contentLength = response.headers.get('Content-Length');
-              let loaded = 0;
-              
-              if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-              
-              const reader = response.body.getReader();
-              const chunks = [];
-              let receivedLength = 0;
-              
-              while(true) {
-                const {done, value} = await reader.read();
-                
-                if (done) break;
-                
-                chunks.push(value);
-                receivedLength += value.length;
-                
-                // 프로그레스 업데이트
-                if (contentLength) {
-                  const percent = Math.round((receivedLength / contentLength) * 100);
-                  progressBar.style.width = `${percent}%`;
-                  progressText.textContent = `다운로드 중... ${percent}% (${formatBytes(receivedLength)} / ${formatBytes(contentLength)})`;
-                } else {
-                  progressText.textContent = `다운로드 중... ${formatBytes(receivedLength)}`;
-                }
-              }
-              
-              // 모든 청크를 하나의 Uint8Array로 결합
-              const chunksAll = new Uint8Array(receivedLength);
-              let position = 0;
-              for(const chunk of chunks) {
-                chunksAll.set(chunk, position);
-                position += chunk.length;
-              }
-              
-              // Blob 생성 및 다운로드
-              const blob = new Blob([chunksAll]);
-              const url = window.URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `Language_${appId}.${ext}`;
-              document.body.appendChild(a);
-              a.click();
-              
-              // 정리
-              window.URL.revokeObjectURL(url);
-              document.body.removeChild(a);
-              
-              progressText.textContent = `다운로드 완료: Language_${appId}.${ext}`;
-              setTimeout(() => {
-                downloadProgress.style.display = 'none';
-                progressBar.style.width = '0%';
-              }, 3000);
-              
-              return;
+            const res = await fetch(langUrl, { method: 'HEAD' });
+            if (res.ok) {
+              window.location.href = langUrl; // 현재 탭에서 열기
+              return; // 첫 번째로 유효한 URL을 찾으면 실행 후 종료
             }
           } catch (err) {
             console.error(`확장자 ${ext}에서 오류 발생:`, err);
-            progressText.textContent = `${ext} 파일 확인 실패, 다음 확장자 시도 중...`;
           }
         }
-        
-        // 모든 확장자 시도 후 실패
-        progressText.textContent = "다운로드 가능한 언어 파일을 찾을 수 없습니다.";
-        progressBar.style.width = '0%';
-        setTimeout(() => {
-          downloadProgress.style.display = 'none';
-        }, 3000);
-      }
-
-      // 바이트 크기를 포맷팅하는 헬퍼 함수
-      function formatBytes(bytes, decimals = 2) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const dm = decimals < 0 ? 0 : decimals;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
       }
 
       function createLinkButtons(appId) {
@@ -314,12 +203,9 @@
           else if (name.includes('ProtonDB')) btnClass = 'protondb-btn';
           else if (name.includes('Language')) btnClass = 'language-btn';
       
-          // Language 다운로드 버튼은 클릭 핸들러 추가
-          if (name.includes('Language')) {
-            return `<button class="${btnClass}" onclick="startLanguageDownload('${appId}', '${githubUser}', '${githubRepo}')">${name}</button>`;
-          } else {
-            return `<button class="${btnClass}" onclick="window.open('${url}', '_blank')">${name}</button>`;
-          }
+          // 다운로드 버튼은 현재 탭에서 열기, 나머지는 새 탭에서 열기
+          const target = name.includes('Language') ? '_self' : '_blank';
+          return `<button class="${btnClass}" onclick="window.open('${url}', '${target}')">${name}</button>`;
         }
       
         // 기본 링크 버튼 생성
@@ -342,7 +228,7 @@
               try {
                 const res = await fetch(langUrl, { method: 'HEAD' });
                 if (res.ok) {
-                  buttonsHTML += createButtonHTML("Git Language 다운로드", langUrl);
+                  buttonsHTML += createButtonHTML("Git Language 경로", langUrl);
                   foundValidUrl = true;
                   break;
                 }
@@ -366,10 +252,9 @@
           linkContainer.innerHTML = buttonsHTML;
         }
       }
-      
-      // 전역 함수로 노출
-      window.startLanguageDownload = startLanguageDownload;
     });
   </script>
+
 </body>
 </html>
+:)
