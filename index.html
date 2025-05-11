@@ -218,35 +218,34 @@
         if (githubUser && githubRepo) {
           const baseLangUrl = `https://raw.githubusercontent.com/${githubUser}/${githubRepo}/refs/heads/main/Language/${appId}`;
           const extensions = ['zip', 'rar', '7z', 'exe', 'tar', 'txt', 'cmd'];
-
+      
+          let foundValidUrl = false;
+      
           const tryExtensions = async () => {
-            let downloadUrl = null;
-
             for (let ext of extensions) {
               const langUrl = `${baseLangUrl}.${ext}`;
+      
               try {
                 const res = await fetch(langUrl, { method: 'HEAD' });
                 if (res.ok) {
                   buttonsHTML += createButtonHTML("한글패치 다운로드", langUrl);
-                  if (hasDownloadQuery && !downloadUrl) {
-                    downloadUrl = langUrl;
-                  }
+                  foundValidUrl = true;
                   break;
                 }
               } catch (err) {
                 console.error(`확장자 ${ext}에서 오류 발생:`, err);
               }
             }
-
-            buttonsHTML += '</div>';
-            linkContainer.innerHTML = buttonsHTML;
-
-            // &Download가 있을 경우 자동 다운로드 실행
-            if (downloadUrl) {
-              window.location.href = downloadUrl;
+      
+            if (foundValidUrl) {
+              buttonsHTML += '</div>';
+              linkContainer.innerHTML = buttonsHTML;
+            } else {
+              buttonsHTML += '</div>';
+              linkContainer.innerHTML = buttonsHTML;
             }
           };
-
+      
           tryExtensions();
         } else {
           buttonsHTML += '</div>';
